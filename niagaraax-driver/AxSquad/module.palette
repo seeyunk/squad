@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bajaObjectGraph version="1.0">
+<p m="b=baja" t="b:UnrestrictedFolder">
+
+ <p n="AxSquadNetwork" m="ud=axSquad" t="ud:AxSquadNetwork"/>
+ <p n="AxSquadDevice" t="ud:AxSquadDevice"/>
+ <p n="AxSquadDeviceFolder" t="ud:AxSquadDeviceFolder"/>
+
+ <p n="AxSquadPointFolder" t="ud:AxSquadPointFolder"/>
+
+</p>
+</bajaObjectGraph>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Squad - alpha( v0.0.1 )</title>
+<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+<link rel="stylesheet" type="text/css" href="css/style.css" />
+<link rel="stylesheet" type="text/css" href="css/epoch.min.css" />
+<style>
+
+.node circle {
+  cursor: pointer;
+  stroke: #3182bd;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  font: 10px sans-serif;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+line.link {
+  fill: none;
+  stroke: #9ecae1;
+  stroke-width: 1.5px;
+}
+
+
+</style>
+<script type="text/javascript" src='js/d3.min.js'></script>
+<script type="text/javascript" src='js/jquery-1.11.3.min.js'></script>
+<script type="text/javascript" src='js/bootstrap.min.js'></script>
+<script type="text/javascript" src='js/epoch.min.js'></script>
+<script type="text/javascript" src="js/json3.min.js"></script>
+
+<script type="text/javascript">
+var CpuMon = function () {
+	var data = 0;
+	
+    //generation function
+    var generate = function( data, id ) {
+      var margin = {top: 25, right: 10, bottom: 10, left: 10},
+          width = $(id).width() - margin.left - margin.right,
+          height = $(id).height() - margin.top - margin.bottom;
+
+      var svg = d3.select(id).append("svg")
+          .attr("width", width+margin.right+margin.left)
+          .attr("height", height+margin.top+margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      for (var i=0; i<20; i++) {
+        svg.append('rect')
+            .attr("width", (width - 84) / 20)
+            .attr("height", height * 0.55)
+            .attr('id', 'docker_cpu_rect_' + (i+1))
+            .attr('transform', "translate(" + (i * (width - 4) / 20) + ",0)" );
+      }
+
+      var i=0;
+      var temp = Math.floor(data / 5);
+      if (temp === 0 && data !== 0)
+        temp =1;
+
+      for ( ; i < temp; i++) {
+        svg.select('#docker_cpu_rect_' + (i+1)).style('fill', '#00afff');
+      }
+
+      for ( ; i<20; i++) {
+        svg.select('#docker_cpu_rect_' + (i+1)).style('fill', '#f3f3f3');
+      }
+
+      svg.selectAll('.dockerCpuText').remove();
+
+      svg.append('text')
+          .attr('class', 'dockerCpuText')
+          .attr('x', 0)
+          .attr('y', height * 0.8 + margin.top)
+          .text(data + '%');
+    }
+
+    //redraw function
+    function redraw(data) {
+      //format of time data
+      var i=0;
+      var temp = Math.floor(data / 5);
+      if (temp === 0 && data !== 0)
+        temp =1;
+
+      for ( ; i < temp; i++) {
+        d3.select('#docker_cpu_rect_' + (i+1)).style('fill', '#00afff');
+      }
+
+      for ( ; i<20; i++) {
+        d3.select('#docker_cpu_rect_' + (i+1)).style('fill', '#f3f3f3');
+      }
+
+      d3.select('.dockerCpuText').text(data + '%');
+    }
+	
+    this.init = function( targetId ) {
+    	generate( data, targetId );
+    }
+    
+   	this.update = function( data ) {
+   		data = data;
+   		redraw( data );
+   	}
+}
+var cpuMon = new CpuMon();
+
+var Squad = {};
+Squad.Chart = function( config ) {
+	
+	var _chart = null;
+	var _timestamp = Date.now();
+	this.config = config;
+	
+	this.init = function( target ) {
+		_chart = $( target ).epoch( this.config );
+	}
+
+	this.draw = function( value ) {
+		var d = [];
+		d.push( { time : timestamp, y : value } );
+		_chart.push( d );
+	}
+	
+	this.getChart = function() {
+		return _chart;
+	}
+	
+	this.getTimestamp = function() {
+		return _timestamp;
+	}
+	
+	this.setTimestamp = function( timestamp ) {
+		_timestamp = timestamp;	
+	}
+};
+
+Squad.Chart.HeapChart = function() {
+	this.config = {
+					type: 'time.area',
+				    data: [{ totalHeap: 'totalHeap', values: [] }, 
+				           { usedHeap: 'usedHeap', values: [] }],
+				    pixelRatio: 1,
+				    tickFormat : { time: function(d) { return new Date( time*1000 ).toString(); } },
+				    axes: ['left', 'bottom']
+					};
+	
+	this.draw = function( used, total ) {
+		var chart = this.getChart();
+		var d = [];
+		var time = ( new Date().getTime() / 1000 ) | 0;
+		d.push( { time : time, y : used }, { time: time, y: total} );
+		chart.push( d );
+	}
+}
+Squad.Chart.HeapChart.prototype = new Squad.Chart();
+var heapChart = new Squad.Chart.HeapChart();
+
+Squad.Chart.PermHeapChart = function() {
+	this.config = {
+					type: 'time.area',
+				    data: [ { used: 'used', values: [] },
+				           { committed: 'committed', values: [] },
+				           { max: 'max', values: [] }
+				           ],
+				    pixelRatio: 1,
+				    tickFormat : { time: function(d) { return new Date(time*1000).toString(); } },
+				    axes: ['left', 'bottom']
+					};
+	
+	this.draw = function( used, committed, max ) {
+		var chart = this.getChart();
+		var d = [];
+		var time = ( new Date().getTime() / 1000 ) | 0;
+		d.push( { time : time, y : used }, { time: time, y: committed}, { time: time, y: max} );
+		chart.push( d );
+	}	
+}
+Squad.Chart.PermHeapChart.prototype = new Squad.Chart();
+var permChart = new Squad.Chart.PermHeapChart();
+
+Squad.WsPacket = function( message ) {
+	var packet = { message : message };
+	if ( typeof arguments[1] !== 'undefined' ) {
+		for ( key in arguments[1] ) {
+			packet[key] = arguments[1][key];
+		}
+	}
+	
+	return packet;
+	
+}
+
+Squad.WebSocket = function( uri, ctx ) {
+	var _webSocket = new WebSocket( uri );
+	_webSocket.onopen = ctx.onOpen;
+	_webSocket.onclose = ctx.onClose;
+	_webSocket.onmessage = ctx.onMessage;
+	_webSocket.onerror = ctx.onError;
+	
+	this.send = function( packet ) {
+		_webSocket.send( JSON.stringify( packet ), { binary : false } );
+	}
+	
+	this.send0 = function( message ) {
+		_webSocket.binaryType = 'arraybuffer';
+		_webSocket.send( message, { binary : true } );
+	}
+};
+
+/*@@
+Squad.TopologyGraph = function() {
+	var _nodes = [];
+	var _links = [];
+	var _svg = null;
+	var _force = null;
+	
+	this.exists = function( n ) {
+		var index = -1;
+		for ( var n = 0; n < _nodes.length; n++ ) {
+			var o = _nodes[n];
+			if ( o !== null && o.name === n ) {
+				index = n
+				break;
+			}
+		}
+		
+		return index;
+	}
+	
+	this.getNodes = function() {
+		return _nodes;
+	}
+	
+	this.getLinks = function() {
+		return _links;
+	}
+	
+	this.pushNode = function( node ) {
+		_nodes.push( node );
+		this.update();		
+	}
+	
+	this.pushLink= function( link ) {
+		_links.push( link );
+		this.update();
+	}
+	
+	this.updateNode = function( i, node ) {
+		_nodes.splice( i, 1 );
+		this.update();
+		this.pushNode( node );
+		this.update();
+		this.draw();
+	}
+	
+	this.update = function() {
+		var linkData = _svg.selectAll( '.link' )
+					.data( _links ); 
+		var link = linkData
+			.enter().append( 'line' )
+	  		.attr( 'class', 'link' )
+	  		.style( 'stroke-width', function(d) { return Math.sqrt(d.value); });
+		
+		var gnodesData = _svg.selectAll( 'g.gnode' )
+ 						.data( _nodes );
+		var gnodes = gnodesData
+			 		.enter().append( 'g' )
+			 		.classed( 'gnode', true );
+		
+		var node = gnodes.append( 'circle' )
+				.attr( 'class', 'node' )
+				.attr( 'r', 10 )
+				.style( 'fill', function( d ) {
+					return d.color;
+					} )
+				.call( _force.drag );
+		
+		var labels = gnodes.append( 'text' )
+			.attr( 'dx', -20 )
+			.attr( 'dy', 20 )
+			.text(function(d) { return d.name; });
+		
+		gnodesData.exit().remove();
+		//linkData.exit().remove();
+		
+		
+	}
+	
+	this.init = function( targetId, w, h ) {
+		_svg = d3.select( targetId ).append( 'svg' )
+								.attr( 'width', w )
+								.attr( 'height', h );
+		_force = d3.layout.force()
+			.charge(-120)
+			.linkDistance(100)
+			.size( [w, h] );
+	}
+
+	this.draw = function() {
+		_force.nodes( _nodes )
+		.links( _links )
+		.start();
+		
+		var link = _svg.selectAll( '.link' );
+		var gnodes = _svg.selectAll( 'g.gnode' );
+		_force.on( 'tick', function() {
+			link.attr( 'x1', function(d) { return d.source.x; })
+			    .attr( 'y1', function(d) { return d.source.y; })
+			    .attr( 'x2', function(d) { return d.target.x; })
+			    .attr( 'y2', function(d) { return d.target.y; });
+
+			gnodes.attr( 'transform', function(d) { 
+			    return 'translate(' + [d.x, d.y] + ')'; 
+			});
+		});
+	}
+}
+*/
+Squad.TopologyGraph = function( targetId, w, h ) {
+	var _targetId = targetId;
+	var _w = w;
+	var _h = h;
+	var _graph = null;
+	
+	var Graph = function() {
+		var _svg = d3.select( targetId ).append( 'svg' )
+					.attr( 'width', _w )
+					.attr( 'height', _h );
+		
+		var _link = _svg.selectAll(".link");
+	    var _node = _svg.selectAll(".node");
+	    var _force = d3.layout.force()
+					.linkDistance( 80 )
+					.charge( -120 )
+					.gravity( .05 )
+					.size( [ _w, _h ] )
+					.on( 'tick', function() {
+									_link.attr( 'x1', function(d) { return d.source.x; })
+										.attr( 'y1', function(d) { return d.source.y; })
+										.attr( 'x2', function(d) { return d.target.x; })
+										.attr( 'y2', function(d) { return d.target.y; });
+													
+									_node.attr( 'transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+					} );
+	
+	    var color = function( d ) {
+			return d._children ? '#3182bd' // collapsed package
+			: d.children ? '#c6dbef' // expanded package
+			: '#fd8d3c'; // leaf node
+	    }
+	    
+	    var flatten = function( root ) {
+	    	var nodes = [], i = 0;
+			var recurse = function( node ) {
+				if ( node.children ) {
+					node.children.forEach( recurse );
+				}
+				
+				if ( !node.id ) {
+					node.id = ++i;
+				}
+				
+				nodes.push( node );
+			}
+			recurse( root );
+			
+			return nodes;
+	    }
+	    
+	    this.clear = function() {
+	    	d3.select( 'svg' ).remove();
+	    }
+	    
+		this.update = function( nodeData ) {
+			_svg.selectAll( '.node' ).data( nodeData );
+		  	var nodes = flatten( nodeData );
+		    var links = d3.layout.tree().links( nodes );
+		    
+			_force.nodes( nodes )
+				.links( links )
+				.start();
+			
+			_link = _link.data( links, function(d) { return d.target.id; });
+			_link.exit().remove();
+			_link.enter().insert( 'line', '.node' ).attr( 'class', 'link' );
+	
+		  	_node = _node.data( nodes, function(d) { return d.id; } );
+		  	_node.exit().remove();
+	
+			var nodeEnter = _node.enter().append( 'g' )
+			    .attr( 'class', 'node' )
+			    //.on( 'click', click)
+			    .call( _force.drag );
+			
+			nodeEnter.append( 'circle' )
+			    .attr( 'r', function(d) { return Math.sqrt( d.size ) / 10 || 4.5; });
+			
+			nodeEnter.append( 'text' )
+			    .attr( 'dy', '.35em' )
+			    .text( function(d) { return d.name; } );
+			
+			_node.select( 'circle' )
+			    .style( 'fill', color );
+		}
+	}
+	
+	this.update = function( topology ) {
+		if ( _graph !== null ) {
+			_graph.clear();
+		}
+		_graph = new Graph();
+		_graph.update( topology );
+	}
+}
+var topology = new Squad.TopologyGraph( '#docker-topology-area-d3', 730, 200 );
+
+
+////////////////////////////////////
+Squad.Admin= function() {
+	var _scoutId = null;
+	var _systemState = null;
+	var _uploads = [];
+	var _scouts = {};
+
+	this.onOpen= function( e ) {
+		
+	}
+	
+	this.onClose = function( e ) {
+		
+	}
+	
+	var updateScout = function( scout ) {
+		var scoutId = scout.scoutId;
+		_scouts[scoutId] = scout;	
+	}
+	
+	var updateSystemState = function( systemState ) {
+		var scoutId = systemState.scoutId;
+		if ( typeof _scouts[scoutId] !== 'undefined' ) {
+			_scouts[scoutId]['systemState'] = systemState; 
+		}
+	}
+	
+	this.onMessage = function( e ) {
+		var data = e.data;
+		var packet = JSON.parse( data );
+		if ( packet.message === 'WS_INIT' ) {
+			_webSocket.send( new Squad.WsPacket( 'WS_REQ_SCOUTS' ) );	
+		}
+		else if ( packet.message === 'WS_RES_SCOUTS' ) {
+			var leaderId = packet.leaderId;
+			var scout = packet.scout;
+			scout['leaderId'] = leaderId;
+			scout['isLeader'] = function() {
+				return this.leaderId === this.scoutId ? true : false;
+			}
+			
+			updateScout( scout );
+			//handleScoutTopology( scout );
+			handleScoutTopology();
+			handleScoutList( scout );
+			handleService( scout );
+		}
+		else if ( packet.message === 'WS_SYSTEM_STATE' ) {
+			updateSystemState( packet.systemState );
+			handleSystemState( packet.systemState );
+		}
+		else if ( packet.message === 'WS_FILE_UPLOAD_BEGIN') {
+			var streamId = packet.streamId
+			uploadRun( streamId );
+		}
+		
+		console.info( _scouts );
+	}
+	
+	var handleService = function( scout ) {
+		var routes = scout.routes;
+		for ( key in routes ) {
+			var iconPlay = $( '<span></span>' ).addClass( 'glyphicon' ).addClass( 'glyphicon-play' );
+			var iconPause = $( '<span></span>' ).addClass( 'glyphicon' ).addClass( 'glyphicon-pause' );
+			var iconStop = $( '<span></span>' ).addClass( 'glyphicon' ).addClass( 'glyphicon-stop' );
+			var btnPlay = $( '<button>' ).addClass( 'btn' ).addClass( 'btn-default' );
+			$( btnPlay ).append( iconPlay );
+			
+			var btnPause = $( '<button>' ).addClass( 'btn' ).addClass( 'btn-default' );
+			$( btnPause ).append( iconPause );
+			
+			var btnStop = $( '<button>' ).addClass( 'btn' ).addClass( 'btn-default' );
+			$( btnStop ).append( iconStop );
+			
+			var size = $( '#' + key ).size();
+			if ( size === 0 ) {
+				var td1 = $( '<td></td>' ).html( key );
+				var td2 = $( '<td></td>' ).html( 'STARTED' );
+				var td3 = $( '<td></td>' ).append( btnPlay, btnStop, btnPause );
+				var tr = $( '<tr></tr>')
+						.attr( 'id', key )
+						.append( td1, td2, td3 );
+				$( '#service-body' ).append( tr );
+			}
+		}
+	}
+	
+	var Node = function( n, s, e ) {
+		return { name : n, size : s, ext : e, children : [] }
+	}
+	
+	_COLOR_INACTIVATED = '#ff0000';
+	_COLOR_ACTIVE_LEADER = '#0000ff';
+	_COLOR_ACTIVE_SCOUT = '#00ff00';
+	
+	var handleScoutList = function( scout ) {
+		var scoutId = scout.scoutId;
+		var scoutState = scout.scoutState;
+		var size = $( '.' + scoutId ).size();
+		if ( size === 0 ) {
+			var li = $( '<li></li>' ).addClass( 'list-group-item' );
+			var badge = $( '<span></span>' )
+					.addClass( 'badge' )
+					.addClass( 'scoutState' )
+					.addClass( scoutId )
+			if ( scoutState === 'INACTIVATED' ) {
+				$( badge ).css( 'background-color', '#ff0000' );
+			}
+			
+			var text = $( '<span></span>' )
+					.addClass( scoutId )
+			$( li ).append( badge, text );
+			$( '#scoutGroup' ).append( li );
+		}
+		
+		var o = $( '.' + scoutId ).get();
+		$( o[0] ).html( scoutState );
+		$( o[1] ).html( scoutId );
+		
+		if ( scoutState === 'INACTIVATED' ) {
+			$( o[0] ).css( 'background-color', '#ff0000' );
+		}
+		else {
+			$( o[0] ).css( 'background-color', '#777' );
+		}
+	}
+	
+	var handleScoutTopology = function( scout ) {
+		for ( scout in _scouts ) {
+			
+		}
+		/*
+		var n = scout.scoutId;
+		var color = _COLOR_INACTIVATED;	
+		if ( scout.isLeader() ) {
+			color = _COLOR_ACTIVE_LEADER;
+		}
+		else {
+			color = _COLOR_ACTIVE_SCOUT;
+		}
+	
+		var node = new Node( n, color, scout );
+		var i = isExistNode( scout ); 
+		var no = topology.getNodes();
+		if ( i === -1 ) {
+			topology.pushNode( node ); 
+		}
+		
+		topology.draw();
+		*/
+	}
+	
+	var isExistNode = function( scout ) {
+		var scoutId = scout.scoutId;
+		var nodes = topology.getNodes();
+		var r = -1;
+		for ( var n = 0; n < nodes.length; n++ ) {
+			var nodeScout = nodes[n].ext;
+			if ( nodeScout.scoutId === scoutId ) {
+				r = n;
+				break;
+			}
+		}
+		
+		return r;
+	}
+	
+	var isExistLink = function( scout ) {
+		var scoutId = scout.scoutId;
+		var links = topology.getLinks();
+		var r = -1;
+		for ( var n = 0; n < links.length; n++ ) {
+			var linkScout = links[n].ext;
+			if ( linkScout.scoutId === scoutId ) {
+				r = n;
+				break;
+			}
+		}
+		
+		return r;
+	}
+	
+	var updateScoutLinks = function() {
+		var nodes = topology.getNodes();
+		var links = topology.getLinks();
+		if ( nodes.length > 0 ) {
+			var leaderIndex = getLeaderIndex();
+			for ( var n = 0; n < nodes.length; n++ ) {
+				var scout = nodes[n].ext;
+				if ( !scout.isLeader() ) {
+					var i = isExistLink( scout );
+					var link = new Link( n, leaderIndex, 10, scout );
+					if ( i === -1 ) {
+						topology.pushLink( link );
+					}
+					else {
+						topology.updateLink( i, link );
+					}
+				}
+			}
+		}
+		topology.draw();
+	}
+	
+	var getLeaderIndex = function() {
+		var leaderIndex = -1;
+		var nodes = topology.getNodes();
+		for( var n = 0; n < nodes.length; n++ ) {
+			var scout = nodes[n].ext;
+			if ( scout.leaderId === scout.scoutId ) {
+				leaderIndex = n;
+				break;
+			}
+		}
+		
+		return leaderIndex;
+	}
+	
+	this.onError = function( e ) {
+		alert( 'An error occurred while trying to connect Squad cluster. Please check cluster state.' );
+	}
+	
+	var handleSystemState = function( systemState ) {
+		_systemState = systemState;
+	}
+	
+	window.setInterval( function() {
+		updateScoutLinks();
+		if ( _systemState != null ) {
+			var cpuLoad = ( _systemState.cpuLoad / 10 ).toFixed( 1 );
+			cpuMon.update( cpuLoad );
+			
+			var usedHeap = _systemState.usedHeap;
+			var totalHeap = _systemState.totalHeap;
+			heapChart.draw( usedHeap, totalHeap );
+			
+			var usedPerm = _systemState.usedPerm;
+			var committedPerm = _systemState.committedPerm;
+			var maxPerm = _systemState.maxPerm;
+			permChart.draw( usedPerm, committedPerm, maxPerm );
+		}
+		
+	}, 1000 );
+	
+	this.uploadBegin = function() {
+		var file = document.getElementById( 'fileUpload' ).files[0];
+		var fileName = file.name;
+		var fileSize = file.size;
+		var streamId = _uploads.length;
+		
+		var packet = new Squad.WsPacket( 'WS_FILE_UPLOAD_BEGIN', { "fileName" : fileName, "fileSize" : fileSize, "streamId" : streamId } );
+		_webSocket.send( packet );
+		_uploads.push( file );
+	}
+	
+	var uploadRun = function( streamId ) {
+		var file = _uploads[streamId];
+		var fileSize = file.size;
+		var chunkSize = 64 * 1024 - 5;
+		var begin = 0;	
+		
+		showProgress();
+		
+		var uploaded = 0;
+		for ( var begin = 0; begin < fileSize; ) {
+			var size = fileSize - chunkSize > 0 ? chunkSize : fileSize;
+			var end = begin + size;
+			var chunk = null;
+			if ( 'mozSlice' in file ) {
+				chunk = file.mozSlice( begin, end );
+			} else if ( 'slice' in file ) {
+				chunk = file.slice( begin, end );
+			} else {
+				chunk = file.webkitSlice( begin, end );
+			}
+			
+			var reader = new FileReader();
+			reader.onloadend = function( e ) {
+				var chunkArray = e.target.result;
+				var header = new ArrayBuffer( 1 + 4 );
+				var view = new DataView( header, 0 );
+				view.setUint8( 0, 0x06 );
+				view.setUint32( 1, streamId );
+				
+				var result = new Uint8Array( header.byteLength + chunkArray.byteLength );
+				result.set( new Uint8Array( header ), 0 );
+				result.set( new Uint8Array( chunkArray ), header.byteLength );
+				_webSocket.send0( result );
+				
+				uploaded += chunkArray.byteLength;
+				var progress = Math.round( uploaded / fileSize * 100.0 );
+				if ( progress < 1 ) {
+					progress = 1;
+				}
+				updateProgress( progress );
+			};
+			reader.readAsArrayBuffer( chunk );
+			begin += size;
+		}
+		
+		setTimeout( function() {
+			var packet = new Squad.WsPacket( 'WS_FILE_UPLOAD_END', { "streamId" : streamId } );
+			_webSocket.send( packet );
+			_uploads.splice( streamId, 1 );
+			hideProgress();
+			alert( 'Service uploaded' );
+		}, 3500 );
+	}
+	
+	var showProgress = function() {
+		$( '.js-loading-bar' ).modal( 'show' );
+	}
+	
+	var updateProgress = function( progressRate ) {
+		$( '.progress-bar' ).css( 'width', progressRate + '%' );
+	}
+	
+	var hideProgress = function() {
+	    $( '.js-loading-bar' ).modal( 'hide' );
+	    $( '.progress-bar' ).css( 'width', '0%' );
+	}
+	
+	var _uri = 'ws://localhost:8080/squad';
+	var _webSocket = new Squad.WebSocket( _uri, this );
+}
+var admin = new Squad.Admin();
+
+</script>
+
+</head>
+
+<body>
+<div class='container'>
+	<div class="col-sm-12 col-md-12">
+		<h3>Squad v0.0.1(alpha)</h3>
+	</div>
+	<div class='col-sm-6 col-md-4'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>Heap Memory Monitor</h5>
+			</div>
+			<div class="panel-body">
+				<div id="docker-mem-area-d3" class="epoch category10" style="height:200px;"></div>
+			</div>
+		</div>
+	</div>
+	<div class='col-sm-6 col-md-4'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>Perm Memory Monitor</h5>
+			</div>
+			<div class="panel-body">
+				<div id="docker-perm-area-d3" class="epoch category10" style="height:200px;"></div>
+			</div>
+		</div>
+	</div>
+	<div class='col-sm-12 col-md-4'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>CPU Usage</h5>
+			</div>
+			<div class="panel-body">
+				<div id="docker-cpu-rect-d3" style="height:200px;"></div>
+			</div>
+		</div>
+	</div>
+	<div class='col-sm-12 col-md-8'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>Cluster Topology</h5>
+			</div>
+			<div class="panel-body">
+				<div id="docker-topology-area-d3" style="height:200px;"></div>
+			</div>
+		</div>
+	</div>
+	<div class='col-sm-6 col-md-4'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>Scout List</h5>
+			</div>
+			<div class="panel-body">
+				<div class="epoch category10" style="height:200px; overflow:auto;">
+					<ul class="list-group" id="scoutGroup" style="margin-top:10px"></ul>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class='col-sm-12 col-md-8'>
+		<div class="panel panel-card">
+			<div class="panel-title">
+				<h5 class='no-margin m-b'>Service</h5>
+			</div>
+			<div class="panel-body">
+				<div id="service-upload">
+					<form class="navbar-form navbar-left" role="search">
+						<div class="form-group">
+							<input type="file" id="fileUpload" />
+						</div>
+						<input type="button" value="Upload" onclick="admin.uploadBegin();" />
+					</form>
+				</div>
+				<table class="table">
+					<thead>
+						<tr>
+							<th>ServiceID</th>
+							<th>Service State</th>
+							<th>Action</th>
+						</tr>
+					</thead>
+					<tbody id="service-body">
+					</tbody>
+				</table>
+			</div>
+			
+		</div>
+	</div>
+</div>
+<div class="modal js-loading-bar">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-body">
+				<div class="modal-body">
+	          		<h5>Uploading Service</h5>
+	      		</div>
+				<div class="progress progress-popup">
+					<div class="progress-bar"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">	
+	//topology.init( '#docker-topology-area-d3', 730, 200 );
+	cpuMon.init( '#docker-cpu-rect-d3' );
+	heapChart.init( '#docker-mem-area-d3' );
+	permChart.init( '#docker-perm-area-d3' );
+</script>
+</body>
+</html>

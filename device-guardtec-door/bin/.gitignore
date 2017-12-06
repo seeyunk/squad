@@ -1,0 +1,10 @@
+.classpath
+/.project
+/.settings/
+/target
+/ext
+/build/
+*.log
+*.log.1
+*.swp
+/slib

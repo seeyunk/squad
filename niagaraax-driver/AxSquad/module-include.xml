@@ -1,0 +1,27 @@
+<!-- Types -->
+<types>
+
+  <type name="AxSquadDevice" class="com.hsnc.squad.axdriver.BAxSquadDevice"/>
+  <type name="AxSquadDeviceFolder" class="com.hsnc.squad.axdriver.BAxSquadDeviceFolder"/>
+  <type name="AxSquadNetwork" class="com.hsnc.squad.axdriver.BAxSquadNetwork"/>
+  <type name="AxSquadPointDeviceExt" class="com.hsnc.squad.axdriver.BAxSquadPointDeviceExt"/>
+  <type name="AxSquadCommunicator" class="com.hsnc.squad.axdriver.comm.BAxSquadCommunicator"/>
+  <type name="AxSquadReceiver" class="com.hsnc.squad.axdriver.comm.BAxSquadReceiver"/>
+  <type name="AxSquadPingRequest" class="com.hsnc.squad.axdriver.comm.req.BAxSquadPingRequest"/>
+  <type name="AxSquadPointDiscoverRequest" class="com.hsnc.squad.axdriver.comm.req.BAxSquadPointDiscoverRequest"/>
+  <type name="AxSquadReadRequest" class="com.hsnc.squad.axdriver.comm.req.BAxSquadReadRequest"/>
+  <type name="AxSquadWriteRequest" class="com.hsnc.squad.axdriver.comm.req.BAxSquadWriteRequest"/>
+  <type name="AxSquadPingResponse" class="com.hsnc.squad.axdriver.comm.rsp.BAxSquadPingResponse"/>
+  <type name="AxSquadPointDiscoverResponse" class="com.hsnc.squad.axdriver.comm.rsp.BAxSquadPointDiscoverResponse"/>
+  <type name="AxSquadReadResponse" class="com.hsnc.squad.axdriver.comm.rsp.BAxSquadReadResponse"/>
+  <type name="AxSquadWriteResponse" class="com.hsnc.squad.axdriver.comm.rsp.BAxSquadWriteResponse"/>
+  <type name="AxSquadPointDiscoveryLeaf" class="com.hsnc.squad.axdriver.discover.BAxSquadPointDiscoveryLeaf"/>
+  <type name="AxSquadPointDiscoveryPreferences" class="com.hsnc.squad.axdriver.discover.BAxSquadPointDiscoveryPreferences"/>
+  <type name="AxSquadDeviceId" class="com.hsnc.squad.axdriver.identify.BAxSquadDeviceId"/>
+  <type name="AxSquadPointDiscoverParams" class="com.hsnc.squad.axdriver.identify.BAxSquadPointDiscoverParams"/>
+  <type name="AxSquadPointId" class="com.hsnc.squad.axdriver.identify.BAxSquadPointId"/>
+  <type name="AxSquadReadParams" class="com.hsnc.squad.axdriver.identify.BAxSquadReadParams"/>
+  <type name="AxSquadWriteParams" class="com.hsnc.squad.axdriver.identify.BAxSquadWriteParams"/>
+  <type name="AxSquadPointFolder" class="com.hsnc.squad.axdriver.point.BAxSquadPointFolder"/>
+  <type name="AxSquadProxyExt" class="com.hsnc.squad.axdriver.point.BAxSquadProxyExt"/>
+</types>

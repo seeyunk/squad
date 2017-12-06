@@ -1,0 +1,29 @@
+<!-- Module Build File -->
+
+<module
+  name = "axSquad"
+  bajaVersion = "0"
+  preferredSymbol = "ud"
+  description = ""
+  vendor = "HSNC"
+>
+
+  <!-- Dependencies -->
+  <dependency name="baja" vendor="Tridium" vendorVersion="3.0" />
+  <dependency name="control" vendor="Tridium" vendorVersion="3.0"/>
+  <dependency name="alarm" vendor="Tridium" vendorVersion="3.0"/>
+  <dependency name="driver" vendor="Tridium" vendorVersion="3.0"/>
+  <dependency name="devDriver" vendor="Tridium" vendorVersion="3.2"/>
+  <dependency name="platform" vendor="Tridium" vendorVersion="3.0"/>
+  <dependency name="devIpDriver" vendor="Tridium" vendorVersion="3.2"/>
+
+  <!-- Packages -->
+  <package name="com.hsnc.squad.axdriver" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.comm" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.comm.req" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.comm.rsp" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.discover" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.identify" doc="true"/>
+  <package name="com.hsnc.squad.axdriver.point" doc="true"/>
+
+</module>

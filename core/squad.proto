@@ -1,0 +1,183 @@
+package com.squad.packet;
+
+option java_package="com.squad.protobuf.packet";
+
+message Packet {
+	enum Type {
+		PING = 1;
+		PONG = 2;
+		JOIN_SQUAD = 17;
+		ACK_JOIN_SQUAD = 18;
+		SYNC_NODES = 99;
+		ACK_SYNC_NODES = 100;
+
+		SCOUT_DETECTED = 3;
+		SCOUT_DETECTED_WELCOME = 4;
+		SCOUT_STATE_CHANGED = 5;
+		EXAMINE_SERVICES = 6;
+		REQUEST_SERVICES = 7;
+		CONTROL_SERVICES = 8;
+		SYNC_SERVICE = 9;
+		STREAM_OPEN_REQ = 10;
+		STREAM_OPEN_RES = 11;
+		STREAM_CLOSE = 12;
+		STREAM_BEGIN = 13;
+		STREAM_RUN = 14;
+		STREAM_END = 15;
+		SERVICE_STATE_CHANGED = 21;
+		SYSTEM_STATE = 16;
+		CONTROL_SERVICE = 22;
+		ACK_CONTROL_SERVICE = 24;
+		NODE_OPERATION = 25;
+		ACK_NODE_OPERATION = 26;
+		NODE_OPERATION_COMMIT = 27;
+		NODE_OPERATION_ROLLBACK = 28;
+	}
+
+	required Type type = 1;
+	optional string sourceId = 98;
+	repeated string targetId = 99;
+	oneof packet {
+		ScoutPacket scoutPacket = 2;
+		StreamOpenReqPacket streamOpenReqPacket = 4;
+		StreamOpenResPacket streamOpenResPacket = 5;
+		StreamClosePacket streamClosePacket = 6;
+		StreamBeginPacket streamBeginPacket = 7;
+		StreamRunPacket streamRunPacket = 8;
+		StreamEndPacket streamEndPacket = 9;
+		SystemStatePacket systemStatePacket = 10;
+		PingPacket pingPacket = 15;
+		PongPacket pongPacket = 16;
+		ScoutDetectedPacket scoutDetectedPacket = 17;
+		NotifyServicesPacket notifyServicesPacket = 18;
+		RequestServicesPacket requestServicesPacket = 19;
+		ServiceStatePacket serviceStatePacket = 20;
+		NodePacket nodePacket = 21;
+		JoinSquadPacket joinSquadPacket = 22;
+		NodePacketList nodePacketList = 23;
+		ControlServicePacket controlServicePacket = 24;
+	}
+}
+
+enum NodeOperation {
+	CREATE = 1; DELETE = 2;
+}
+
+message NodePacketList {
+	repeated NodePacket nodePacket = 1;	
+}
+
+message NodePacket {
+	required string node = 1;
+	optional NodeOperation nodeOperation = 2;
+	optional int64 timestamp = 3;
+	optional bytes value  = 4;
+}
+
+enum ScoutState { INACTIVATED = 1; SYNC = 2; ACTIVATED = 3; };
+
+message JoinSquadPacket {
+	required string scoutId = 1;
+}
+
+message ScoutPacket {
+	required string scoutId = 1;
+	optional ScoutState scoutState = 2;
+	optional int32 syncCount = 3;
+	optional int32 healthCheck = 4;
+}
+
+message PingPacket {
+	required string scoutId = 1;
+}
+
+message PongPacket {
+	required string scoutId = 1;
+}
+
+message ScoutDetectedPacket {
+	required ScoutPacket scoutPacket = 1; 
+}
+
+enum StreamType { FILE = 1; OBJECT = 2; }
+
+enum ServiceState {
+	STARTED = 1; 
+	SUSPENDED = 2; 
+	STOPPED = 3; 
+	SHUTDOWNED = 4;
+	NOT_REGISTERED = 5;	
+}
+
+message ServicePacket {
+	optional string fileName = 1;
+	optional int64 fileSize = 2;
+	optional string crc32 = 3;
+}
+
+message ControlServicePacket {
+	required string serviceId = 1;
+	required ServiceState serviceState = 2;
+}
+
+message ServiceStatePacket {
+	optional string scoutId = 1;
+	required string serviceId = 2;
+	required ServiceState serviceState = 3;	
+}
+
+message NotifyServicesPacket {
+	required string scoutId = 1;
+	repeated ServicePacket servicePacket = 2;
+	repeated ServiceStatePacket serviceStatePacket = 3;	
+}
+
+message RequestServicesPacket {
+	required string scoutId = 1;
+	repeated ServicePacket servicePacket = 2;
+}
+
+message StreamOpenReqPacket {
+	required string scoutId = 1;
+	required string streamId = 2;
+	required StreamType streamType = 3;
+	optional string fileName = 4;
+	optional int64 fileSize = 5;
+	optional string crc32 = 6;
+}
+
+message StreamOpenResPacket {
+	required string streamId = 1;
+}
+
+message StreamClosePacket {
+	required string streamId = 1;
+}
+
+message StreamBeginPacket {
+	required string streamId = 1;
+	optional string fileName = 2;
+}
+
+message StreamEndPacket {
+	required string streamId = 1;
+}
+
+message StreamRunPacket {
+	required string streamId = 1;
+	required bytes buffer = 2;
+}
+
+message SystemStatePacket {
+	required string scoutId = 1;
+	optional int32 availableProcessor = 2;
+	optional double cpuLoad = 3;
+	optional double systemLoad = 4;
+	optional int64 upTime = 5;
+	optional int64 maxHeap = 6;
+	optional int64 totalHeap = 7;
+	optional int64 usedHeap = 8;
+	optional int64 usedPerm = 9;
+	optional int64 maxPerm = 10;
+	optional int64 committedPerm = 11;
+}

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.node circle {
+  cursor: pointer;
+  stroke: #3182bd;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  font: 10px sans-serif;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+line.link {
+  fill: none;
+  stroke: #9ecae1;
+  stroke-width: 1.5px;
+}
+
+</style>
+<body>
+
+<script type="text/javascript" src='js/d3.min.js'></script>
+<script type="text/javascript" src='js/jquery-1.11.3.min.js'></script>
+<script type="text/javascript" src="js/json3.min.js"></script>
+<script>
+
+var Squad = {};
+Squad.TopologyGraph = function( targetId, w, h ) {
+	var _targetId = targetId;
+	var _w = w;
+	var _h = h;
+	var _graph = null;
+	
+	var Graph = function() {
+		var _svg = d3.select( targetId ).append( 'svg' )
+					.attr( 'width', _w )
+					.attr( 'height', _h );
+		
+		var _link = _svg.selectAll(".link");
+	    var _node = _svg.selectAll(".node");
+	    var _force = d3.layout.force()
+					.linkDistance( 80 )
+					.charge( -120 )
+					.gravity( .05 )
+					.size( [ _w, _h ] )
+					.on( 'tick', function() {
+									_link.attr( 'x1', function(d) { return d.source.x; })
+										.attr( 'y1', function(d) { return d.source.y; })
+										.attr( 'x2', function(d) { return d.target.x; })
+										.attr( 'y2', function(d) { return d.target.y; });
+													
+									_node.attr( 'transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+					} );
+	
+	    var color = function( d ) {
+			return d._children ? '#3182bd' // collapsed package
+			: d.children ? '#c6dbef' // expanded package
+			: '#fd8d3c'; // leaf node
+	    }
+	    
+	    var flatten = function( root ) {
+	    	var nodes = [], i = 0;
+			var recurse = function( node ) {
+				if ( node.children ) {
+					node.children.forEach( recurse );
+				}
+				
+				if ( !node.id ) {
+					node.id = ++i;
+				}
+				
+				nodes.push( node );
+			}
+			recurse( root );
+			
+			return nodes;
+	    }
+	    
+	    this.clear = function() {
+	    	d3.select( 'svg' ).remove();
+	    }
+	    
+		this.update = function( nodeData ) {
+			_svg.selectAll( '.node' ).data( nodeData );
+		  	var nodes = flatten( nodeData );
+		    var links = d3.layout.tree().links( nodes );
+		    
+			_force.nodes( nodes )
+				.links( links )
+				.start();
+			
+			_link = _link.data( links, function(d) { return d.target.id; });
+			_link.exit().remove();
+			_link.enter().insert( 'line', '.node' ).attr( 'class', 'link' );
+	
+		  	_node = _node.data( nodes, function(d) { return d.id; } );
+		  	_node.exit().remove();
+	
+			var nodeEnter = _node.enter().append( 'g' )
+			    .attr( 'class', 'node' )
+			    //.on( 'click', click)
+			    .call( _force.drag );
+			
+			nodeEnter.append( 'circle' )
+			    .attr( 'r', function(d) { return Math.sqrt( d.size ) / 10 || 4.5; });
+			
+			nodeEnter.append( 'text' )
+			    .attr( 'dy', '.35em' )
+			    .text( function(d) { return d.name; } );
+			
+			_node.select( 'circle' )
+			    .style( 'fill', color );
+		}
+	}
+	
+	this.update = function( topology ) {
+		if ( _graph !== null ) {
+			_graph.clear();
+		}
+		_graph = new Graph();
+		_graph.update( topology );
+	}
+}
+
+/*
+var width = 960,
+    height = 500,
+    root;
+
+var force = d3.layout.force()
+    .linkDistance(80)
+    .charge(-120)
+    .gravity(.05)
+    .size([width, height])
+    .on("tick", tick);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var link = svg.selectAll(".link"),
+    node = svg.selectAll(".node");
+
+var _nodes;
+var _links;
+
+svg.selectAll( '.node' ).data( topology );
+  root = topology;
+  update();
+
+function update() {
+	_nodes = flatten(root),
+    _links = d3.layout.tree().links( _nodes );
+
+  // Restart the force layout.
+  force
+      .nodes( _nodes )
+      .links( _links )
+      .start();
+
+  // Update links.
+  link = link.data( _links, function(d) { return d.target.id; });
+  link.exit().remove();
+  link.enter().insert( 'line', '.node' ).attr( 'class', 'link' );
+
+  // Update nodes.
+  node = node.data( _nodes, function(d) { return d.id; } );
+  node.exit().remove();
+
+  var nodeEnter = node.enter().append( 'g' )
+      .attr( 'class', 'node' )
+      .on( 'click', click)
+      .call(force.drag);
+
+  nodeEnter.append( 'circle' )
+      .attr( 'r', function(d) { return Math.sqrt(d.size) / 10 || 4.5; });
+
+  nodeEnter.append( 'text' )
+      .attr( 'dy', '.35em' )
+      .text(function(d) { return d.name; });
+
+  node.select( 'circle' )
+      .style( 'fill', color);
+}
+
+function tick() {
+  link.attr( 'x1', function(d) { return d.source.x; })
+      .attr( 'y1', function(d) { return d.source.y; })
+      .attr( 'x2', function(d) { return d.target.x; })
+      .attr( 'y2', function(d) { return d.target.y; });
+
+  node.attr( 'transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+}
+
+function color(d) {
+  return d._children ? '#3182bd' // collapsed package
+      : d.children ? '#c6dbef' // expanded package
+      : '#fd8d3c'; // leaf node
+}
+
+// Toggle children on click.
+function click(d) {
+  if (d3.event.defaultPrevented) return; // ignore drag
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+  update();
+}
+
+// Returns a list of all nodes under the root.
+function flatten(root) {
+  var nodes = [], i = 0;
+
+  function recurse(node) {
+    if (node.children) node.children.forEach(recurse);
+    if (!node.id) node.id = ++i;
+    nodes.push(node);
+  }
+  
+  recurse(root);
+  return nodes;
+}
+
+*/
+
+var squad = '{ "name": "squad cluster", "size" : 2000, "children" : [] }';
+var child = '{ "name": "scout-0", "size" : 8000, "children" : [] }';
+
+var metaNode = '{ "name": "", "size" : 2000, "children" : [] }';
+var jsonDummy = '{ "name": "scout-0", "size" : 8000, "children" : [] }';
+var jsonData = '{ "name": "scout-0", "size" : 8000, "children": [ { "name": "scout-1", "size" : 4000 }, { "name": "scout-2", "size" : 4000 } ] }';
+var jsonData2 = '{ "name": "scout-0", "size" : 8000, "children": [ { "name": "scout-1", "size" : 4000 }, { "name": "scout-2", "size" : 4000 }, { "name": "scout-3", "size" : 4000 } ] }';
+/*
+var topology = JSON.parse( jsonData );
+tGraph.update( topology );
+
+var topology = JSON.parse( jsonData );
+tGraph.update( topology );
+*/
+
+var tGraph = new Squad.TopologyGraph( 'body', 960, 500 );
+tGraph.update( JSON.parse( squad ) );
+
+var addScout = function() {
+	tGraph.update( JSON.parse( jsonData ) );
+	
+	//tGraph.update( {} );
+	/*
+	var squad = JSON.parse( metaNode );
+	squad.name = 'Squad Cluster';
+	
+	var leader = JSON.parse( metaNode );
+	leader.name = 'leader';
+	squad.children.push( leader );
+	
+	tGraph.update( squad );
+	*/
+	/*
+	squad.children.push( child );
+	console.info( squad );
+	tGraph.update( squad );
+	*/
+}
+
+var removeScout = function() {
+	tGraph.update( JSON.parse( jsonData2 ) );
+	/*
+	var dd = {};
+	svg.selectAll( '.node' ).data( dd );
+	root = dd;
+	update();
+	
+	var oldData = JSON.parse( jsonData );
+	oldData.children.splice( 1, 1 );
+	svg.selectAll( '.node' ).data( oldData );
+	root = oldData;
+	update();
+	*/
+}
+</script>
+<button onclick="javascript:addScout();">Add</button>
+<button onclick="javascript:removeScout();">Remove</button>
+</body>
+</html>
